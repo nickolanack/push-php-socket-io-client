@@ -1,0 +1,16 @@
+{
+    "name": "nblackwe/php-socketio-client",
+    "authors": [
+        {
+            "name": "Nick Blackwell",
+            "email": "nickblackwell82@gmail.com"
+        }
+    ],
+    
+    "require": {
+        "wisembly/elephant.io": "^3.3"
+    },
+    "autoload": {
+        "psr-4": { "socketio\\": "src/" }
+    }
+}
