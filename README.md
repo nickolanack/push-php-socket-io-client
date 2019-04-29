@@ -26,7 +26,7 @@ Test
 
 ```
 
-#Usage
+#Usage (Emitter)
 
 ```php
 
@@ -36,5 +36,26 @@ Test
 	$credentials=json_decode(file_get_contents(__DIR__.'/credentials.json'));
 	(new \socketio\Client($credentials->url, $credentials))
 	->broadcast('chat', 'message', "Hello World");
+
+```
+
+
+
+
+#Usage (Listener)
+
+```php
+
+
+	include_once __DIR__ . '/vendor/autoload.php';
+
+	$credentials=json_decode(file_get_contents(__DIR__.'/credentials.json'));
+	(new \socketio\Client($credentials->url, $credentials))
+		->on('chat', 'message', function($message){
+
+			print_r($message);
+
+		})
+		->listen(); //never returns!!!
 
 ```
