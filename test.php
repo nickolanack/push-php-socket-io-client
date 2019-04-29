@@ -1,5 +1,6 @@
 <?php
 include_once __DIR__ . '/vendor/autoload.php';
 
-(new \socketio\Client('{socket-io-url}', json_decode(file_get_contents(__DIR__.'/credentials.json'))))
+$credentials=json_decode(file_get_contents(__DIR__.'/credentials.json'));
+(new \socketio\Client($credentials->url, $credentials))
 ->broadcast('chat', 'message', "Hello World");
