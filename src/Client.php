@@ -12,6 +12,9 @@ class Client{
 		$this->url=$url;
 		$this->credentials=$args;
 
+		if(is_object($this->credentials)){
+			$this->credentials=get_object_vars($this->credentials);
+		}
 		
 
 
