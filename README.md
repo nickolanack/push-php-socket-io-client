@@ -41,6 +41,7 @@ Test
 
 
 
+you can listen to event streams, (but use nodejs instead if possible)
 
 #Usage (Listener)
 
