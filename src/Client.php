@@ -32,7 +32,87 @@ class Client{
 		$client->emit('emit', array("channel"=>$channel.'/'.$event, "data"=>$data));
 		$client->close();
 
+		return $this;
+
 	}
+
+
+	public function getPresenceGroup($channels, $event){
+
+
+		$client = new \ElephantIO\Client(new \ElephantIO\Engine\SocketIO\Version2X($this->url, array()));
+		$client->initialize();
+		$client->emit('authenticate', $this->credentials);
+
+		
+
+		
+		$emitData=array("channels"=>array_map(function($c)use($event){
+			return $c.'/'.$event;
+		}, $channels));
+		
+
+		$client->emit('presence', $emitData);
+
+		while (true) {
+		    $r = $client->read();
+
+		    if (!empty($r)) {
+		        $presence=explode('[', $r, 2);
+		        $presence='['.array_pop($presence);
+		        $presence=json_decode($presence);
+
+		        return $presence[1];
+
+		        break;
+		    }
+		}
+
+	
+
+
+		return $this;
+
+
+	}
+
+
+	public function getPresence($channel, $event){
+
+
+		$client = new \ElephantIO\Client(new \ElephantIO\Engine\SocketIO\Version2X($this->url, array()));
+		$client->initialize();
+		$client->emit('authenticate', $this->credentials);
+
+		
+
+		
+		$emitData=array("channel"=>$channel.'/'.$event);
+		
+		$client->emit('presence', $emitData);
+
+		while (true) {
+		    $r = $client->read();
+
+		    if (!empty($r)) {
+		        $presence=explode('[', $r, 2);
+		        $presence='['.array_pop($presence);
+		        $presence=json_decode($presence);
+
+		        return $presence[1];
+
+		        break;
+		    }
+		}
+
+	
+
+
+		return $this;
+
+
+	}
+
 
 	public function on($channel, $event, $callback){
 
