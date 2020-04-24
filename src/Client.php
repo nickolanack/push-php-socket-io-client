@@ -8,7 +8,7 @@ class Client{
 	private $url;
 
 	protected $events=array();
-
+	private $client=null;
 
 	public function __construct($url, $args){
 			
@@ -23,11 +23,22 @@ class Client{
 
 	}
 
+	protected function getClient(){
+		if(empty($this->client)){
+			$client = new \ElephantIO\Client(new \ElephantIO\Engine\SocketIO\Version2X($this->url, array()));
+			$client->initialize();
+			$this->client=$client;
+		}
+
+		return $this->client;
+	}
+
 
 	public function broadcast($channel, $event, $data){
 
-		$client = new \ElephantIO\Client(new \ElephantIO\Engine\SocketIO\Version2X($this->url, array()));
-		$client->initialize();
+
+		$client=$this->getClient();
+		
 		$client->emit('authenticate', $this->credentials);
 		$client->emit('emit', array("channel"=>$channel.'/'.$event, "data"=>$data));
 		$client->close();
@@ -40,8 +51,8 @@ class Client{
 	public function getPresenceGroup($channels, $event){
 
 
-		$client = new \ElephantIO\Client(new \ElephantIO\Engine\SocketIO\Version2X($this->url, array()));
-		$client->initialize();
+		$client=$this->getClient();
+
 		$client->emit('authenticate', $this->credentials);
 
 		
@@ -80,8 +91,8 @@ class Client{
 	public function getPresence($channel, $event){
 
 
-		$client = new \ElephantIO\Client(new \ElephantIO\Engine\SocketIO\Version2X($this->url, array()));
-		$client->initialize();
+		$client=$this->getClient();
+
 		$client->emit('authenticate', $this->credentials);
 
 		
