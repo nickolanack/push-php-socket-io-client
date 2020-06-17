@@ -41,11 +41,18 @@ class Client{
 		
 		$client->emit('authenticate', $this->credentials);
 		$client->emit('emit', array("channel"=>$channel.'/'.$event, "data"=>$data));
-		$client->close();
+		//$client->close();
 
 		return $this;
 
 	}
+
+	public function __destruct()
+    {
+    	if($this->client){
+        	$this->client->close();
+    	}
+    }
 
 
 	public function getPresenceGroup($channels, $event){
