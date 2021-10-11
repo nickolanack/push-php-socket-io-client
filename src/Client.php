@@ -10,6 +10,8 @@ class Client{
 	protected $events=array();
 	private $client=null;
 
+	private $httpsBroadcast=false;
+
 	public function __construct($url, $args){
 			
 		$this->url=$url;
@@ -21,6 +23,11 @@ class Client{
 		
 
 
+	}
+
+	public function useHttpsBroadcast(){
+		$this->httpsBroadcast=true;
+		return $this;
 	}
 
 	protected function getClient(){
@@ -37,6 +44,11 @@ class Client{
 	public function broadcast($channel, $event, $data){
 
 
+		if($this->httpsBroadcast){
+			return $this->post($channel, $event, $data);
+		}
+
+
 		$client=$this->getClient();
 		
 		$client->emit('authenticate', $this->credentials);
@@ -46,6 +58,40 @@ class Client{
 		return $this;
 
 	}
+
+	private function post($channel, $event, $data){
+
+		$client = new \GuzzleHttp\Client();
+        $httpcode = 0;
+        try {
+            $response = $client->request('POST', $this->url.'/emit', array(
+                'timeout' => 15,
+                'form_params' => array(
+                    'credentials'=>json_encode($this->credentials),
+                    'channel'=>$channel.'/'.$event,
+                    'data'=>json_encode($data),
+                ),
+            ));
+            $httpcode = $response->getStatusCode();
+
+        } catch (\RequestException $e) {
+            //echo $e->getRequest();
+            if ($e->hasResponse()) {
+                $httpcode = $e->getResponse()->getStatusCode();
+            }
+        }
+
+        if ($httpcode !== 200) {
+            throw new \Exception('Ajax Request Error ' . $httpcode);
+        }
+
+        $body = $response->getBody();
+        echo $body;
+
+        return $this;
+
+	}
+
 
 	public function __destruct()
     {
