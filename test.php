@@ -1,5 +1,9 @@
 <?php
-include_once __DIR__ . '/vendor/autoload.php';
+if(file_exists(__DIR__ . '/vendor/autoload.php')){
+	include_once __DIR__ . '/vendor/autoload.php';
+}else{
+	require __DIR__ . '/../../autoload.php';
+}
 
 $credentials=json_decode(file_get_contents(__DIR__.'/credentials.json'));
 (new \socketio\Client($credentials->url, $credentials))
