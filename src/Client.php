@@ -74,15 +74,17 @@ class Client{
             ));
             $httpcode = $response->getStatusCode();
 
-        } catch (\RequestException $e) {
+        } catch (\GuzzleHttp\Exception\RequestException $e) {
             //echo $e->getRequest();
             if ($e->hasResponse()) {
                 $httpcode = $e->getResponse()->getStatusCode();
             }
+            error_log($e->getMessage());
         }
 
         if ($httpcode !== 200) {
-            throw new \Exception('Ajax Request Error ' . $httpcode);
+
+            throw new \Exception('Post Broadcast Error: ' . $httpcode);
         }
 
         //$body = $response->getBody();
