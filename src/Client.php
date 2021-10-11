@@ -85,8 +85,8 @@ class Client{
             throw new \Exception('Ajax Request Error ' . $httpcode);
         }
 
-        $body = $response->getBody();
-        echo $body;
+        //$body = $response->getBody();
+        //echo $body;
 
         return $this;
 
