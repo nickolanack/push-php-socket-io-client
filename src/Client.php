@@ -2,193 +2,245 @@
 
 namespace socketio;
 
-class Client{
+class Client {
 
 	private $credentials;
 	private $url;
 
-	protected $events=array();
-	private $client=null;
+	protected $events = array();
+	private $client = null;
 
-	private $httpsBroadcast=false;
+	private $httpsBroadcast = false;
 
-	public function __construct($url, $args){
-			
-		$this->url=$url;
-		$this->credentials=$args;
+	private $verbose = false;
 
-		if(is_object($this->credentials)){
-			$this->credentials=get_object_vars($this->credentials);
+	public function __construct($url, $args) {
+
+		$this->url = $url;
+		$this->credentials = $args;
+
+		if (is_object($this->credentials)) {
+			$this->credentials = get_object_vars($this->credentials);
 		}
-		
-
 
 	}
 
-	public function useHttpsBroadcast(){
-		$this->httpsBroadcast=true;
+	private function _log($string) {
+		if ($this->verbose) {
+			echo $string;
+		}
+	}
+
+	public function useHttpsBroadcast() {
+		$this->httpsBroadcast = true;
 		return $this;
 	}
 
-	protected function getClient(){
-		if(empty($this->client)){
+	protected function getClient() {
+		if (empty($this->client)) {
 			$client = new \ElephantIO\Client(new \ElephantIO\Engine\SocketIO\Version2X($this->url, array()));
 			$client->initialize();
-			$this->client=$client;
+			$this->client = $client;
 		}
 
 		return $this->client;
 	}
 
+	public function broadcast($channel, $event, $data) {
 
-	public function broadcast($channel, $event, $data){
-
-
-		if($this->httpsBroadcast){
-			return $this->post($channel, $event, $data);
+		$time = microtime(true);
+		if ($this->httpsBroadcast) {
+			$this->post($channel, $event, $data);
+			$this->_log((microtime(true) - $time) . "\n");
+			return $this;
 		}
 
+		$client = $this->getClient();
 
-		$client=$this->getClient();
-		
 		$client->emit('authenticate', $this->credentials);
-		$client->emit('emit', array("channel"=>$channel.'/'.$event, "data"=>$data));
-		//$client->close();
-
+		$client->emit('emit', array("channel" => $channel . '/' . $event, "data" => $data));
+		// $client->close();
+		$this->_log("emit: " . (microtime(true) - $time) . "\n");
 		return $this;
 
 	}
 
-	private function post($channel, $event, $data){
+	private function post($channel, $event, $data) {
 
 		$client = new \GuzzleHttp\Client();
-        $httpcode = 0;
-        try {
-            $response = $client->request('POST', $this->url.'/emit', array(
-                'timeout' => 15,
-                'form_params' => array(
-                    'credentials'=>json_encode($this->credentials),
-                    'channel'=>$channel.'/'.$event,
-                    'data'=>json_encode($data),
-                ),
-            ));
-            $httpcode = $response->getStatusCode();
+		$httpcode = 0;
+		try {
+			$response = $client->request('POST', $this->url . '/emit', array(
+				'timeout' => 15,
+				'form_params' => array(
+					'credentials' => json_encode($this->credentials),
+					'channel' => $channel . '/' . $event,
+					'data' => json_encode($data),
+				),
+			));
+			$httpcode = $response->getStatusCode();
 
-        } catch (\GuzzleHttp\Exception\RequestException $e) {
-            //echo $e->getRequest();
-            if ($e->hasResponse()) {
-                $httpcode = $e->getResponse()->getStatusCode();
-            }
-            error_log($e->getMessage());
-        }
+		} catch (\GuzzleHttp\Exception\RequestException $e) {
+			//echo $e->getRequest();
+			if ($e->hasResponse()) {
+				$httpcode = $e->getResponse()->getStatusCode();
+			}
+			error_log($e->getMessage());
+		}
 
-        if ($httpcode !== 200) {
+		if ($httpcode !== 200) {
 
-            throw new \Exception('Post Broadcast Error: ' . $httpcode);
-        }
+			throw new \Exception('Post Broadcast Error: ' . $httpcode);
+		}
 
-        //$body = $response->getBody();
-        //echo $body;
+		$body = $response->getBody();
+		$this->_log($body . " ");
 
-        return $this;
+		return $this;
 
 	}
 
+	private function presence($channels, $event) {
 
-	public function __destruct()
-    {
-    	if($this->client){
-        	$this->client->close();
-    	}
-    }
+		$client = new \GuzzleHttp\Client();
+		$httpcode = 0;
 
+		$query = array(
+			'credentials' => json_encode($this->credentials),
+		);
 
-	public function getPresenceGroup($channels, $event){
+		if (is_string($channels)) {
+			$query['channel'] = $channels;
+		} else {
+			$query['channels'] = json_encode(array_map(function ($c) use ($event) {
+				return $c . '/' . $event;
+			}, $channels));
+		}
 
+		try {
+			$response = $client->request('POST', $this->url . '/presence', array(
+				'timeout' => 15,
+				'form_params' => $query,
+			));
+			$httpcode = $response->getStatusCode();
 
-		$client=$this->getClient();
+		} catch (\GuzzleHttp\Exception\RequestException $e) {
+			//echo $e->getRequest();
+			if ($e->hasResponse()) {
+				$httpcode = $e->getResponse()->getStatusCode();
+			}
+			error_log($e->getMessage());
+		}
+
+		if ($httpcode !== 200) {
+
+			throw new \Exception('Presence Request Error: ' . $httpcode);
+		}
+
+		$body = $response->getBody();
+		$presence = json_decode($body);
+
+		$this->_log(json_encode($presence) . " ");
+
+		return $presence;
+
+		//return $this;
+
+	}
+
+	public function __destruct() {
+		if ($this->client) {
+			$this->client->close();
+		}
+	}
+
+	public function getPresenceGroup($channels, $event) {
+
+		$time = microtime(true);
+
+		if ($this->httpsBroadcast) {
+			$presence = $this->presence($channels, $event);
+			$this->_log((microtime(true) - $time) . "\n");
+			return $presence;
+		}
+
+		$client = $this->getClient();
 
 		$client->emit('authenticate', $this->credentials);
 
-		
-
-		
-		$emitData=array("channels"=>array_map(function($c)use($event){
-			return $c.'/'.$event;
+		$emitData = array("channels" => array_map(function ($c) use ($event) {
+			return $c . '/' . $event;
 		}, $channels));
-		
 
 		$client->emit('presence', $emitData);
 
 		while (true) {
-		    $r = $client->read();
+			$r = $client->read();
 
-		    if (!empty($r)) {
-		        $presence=explode('[', $r, 2);
-		        $presence='['.array_pop($presence);
-		        $presence=json_decode($presence);
+			if (!empty($r)) {
+				$presence = explode('[', $r, 2);
+				$presence = '[' . array_pop($presence);
 
-		        return $presence[1];
+				$presence = json_decode($presence);
 
-		        break;
-		    }
+				$this->_log(json_encode($presence[1]) . " ");
+				$this->_log((microtime(true) - $time) . "\n");
+				return $presence[1];
+
+				break;
+			}
 		}
-
-	
-
 
 		return $this;
 
-
 	}
 
+	public function getPresence($channel, $event) {
 
-	public function getPresence($channel, $event){
+		$time = microtime(true);
 
+		if ($this->httpsBroadcast) {
+			$presence = $this->presence($channel, $event);
+			$this->_log((microtime(true) - $time) . "\n");
+			return $presence;
+		}
 
-		$client=$this->getClient();
+		$client = $this->getClient();
 
 		$client->emit('authenticate', $this->credentials);
 
-		
+		$emitData = array("channel" => $channel . '/' . $event);
 
-		
-		$emitData=array("channel"=>$channel.'/'.$event);
-		
 		$client->emit('presence', $emitData);
 
 		while (true) {
-		    $r = $client->read();
+			$r = $client->read();
 
-		    if (!empty($r)) {
-		        $presence=explode('[', $r, 2);
-		        $presence='['.array_pop($presence);
-		        $presence=json_decode($presence);
+			if (!empty($r)) {
+				$presence = explode('[', $r, 2);
+				$presence = '[' . array_pop($presence);
+				$presence = json_decode($presence);
 
-		        return $presence[1];
+				$this->_log(json_encode($presence[1]) . " ");
+				$this->_log((microtime(true) - $time) . "\n");
+				return $presence[1];
 
-		        break;
-		    }
+				break;
+			}
 		}
 
-	
-
-
 		return $this;
-
 
 	}
 
+	public function on($channel, $event, $callback) {
 
-	public function on($channel, $event, $callback){
-
-		$this->events[]=array("event"=>$channel.'/'.$event, 'callback'=>$callback);
+		$this->events[] = array("event" => $channel . '/' . $event, 'callback' => $callback);
 
 		return $this;
 	}
 
-	public function listen(){
-
+	public function listen() {
 
 		$client = new \ElephantIO\Client(new \ElephantIO\Engine\SocketIO\Version2X($this->url, array()));
 		$client->initialize();
@@ -199,23 +251,23 @@ class Client{
 		}
 
 		while (true) {
-		    $r = $client->read();
-		    if (!empty($r)) {
-		        //var_dump($r);
-		        //
-		        $parts=explode('[', $r, 2);
-		        $id=$parts[0];
-		        $message=json_decode('['.$parts[1]);
-		    
-		        $event=$message[0];
-		        $data=$message[1];
+			$r = $client->read();
+			if (!empty($r)) {
+				//var_dump($r);
+				//
+				$parts = explode('[', $r, 2);
+				$id = $parts[0];
+				$message = json_decode('[' . $parts[1]);
 
-		        foreach ($this->events as $e) {
-					if($e['event']===$event){
+				$event = $message[0];
+				$data = $message[1];
+
+				foreach ($this->events as $e) {
+					if ($e['event'] === $event) {
 						$e['callback']($data);
 					}
 				}
-		    }
+			}
 
 		}
 	}
